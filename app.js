@@ -227,6 +227,64 @@ function suppressHoverUrl() {
   });
 }
 
+// One weather fetch (past_days=1 + forecast_days=2) covers yesterday, today and
+// tomorrow, so caching it lets day-to-day navigation render instantly instead of
+// flashing the loading placeholders on every full page load.
+const CACHE_KEY = `teni-weather:${POSTCODE}`;
+const CACHE_TTL_MS = 30 * 60 * 1000;
+
+function readCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function writeCache(payload) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
+  } catch (e) {
+    /* storage unavailable - fall back to live fetches */
+  }
+}
+
+function hasDate(hourly, ymd) {
+  return !!hourly && Array.isArray(hourly.time) &&
+    hourly.time.some((t) => t.startsWith(ymd));
+}
+
+// Refresh from the network. Reuses cached coordinates so revalidation skips the
+// geocode call (the postcode never changes).
+async function refresh(existing) {
+  let lat, lon, town;
+  if (existing && typeof existing.lat === "number") {
+    ({ lat, lon, town } = existing);
+  } else {
+    ({ lat, lon, town } = await geocode(POSTCODE));
+  }
+  const hourly = await fetchWeather(lat, lon);
+  const payload = { ts: Date.now(), lat, lon, town, hourly };
+  writeCache(payload);
+  return payload;
+}
+
+function renderDay(payload, targetDate) {
+  const locationEl = document.getElementById("day-location");
+  if (payload.town) {
+    locationEl.textContent = payload.town;
+    locationEl.hidden = false;
+  } else {
+    locationEl.hidden = true;
+  }
+  const index = indexHourly(payload.hourly);
+  renderColumn("col-morning", bucketSummary(index, targetDate, BUCKETS.morning, false));
+  renderColumn("col-afternoon", bucketSummary(index, targetDate, BUCKETS.afternoon, false));
+  renderColumn("col-night", bucketSummary(index, targetDate, BUCKETS.night, true));
+  document.querySelector(".app").classList.remove("error");
+}
+
 async function main() {
   const day = getDayParam();
   const today = londonToday();
@@ -238,23 +296,25 @@ async function main() {
   markCurrentLink(day);
   suppressHoverUrl();
 
-  try {
-    const { lat, lon, town } = await geocode(POSTCODE);
-    const locationEl = document.getElementById("day-location");
-    if (town) {
-      locationEl.textContent = town;
-    } else {
-      locationEl.hidden = true;
-    }
-    const hourly = await fetchWeather(lat, lon);
-    const index = indexHourly(hourly);
+  const cached = readCache();
 
-    renderColumn("col-morning", bucketSummary(index, targetDate, BUCKETS.morning, false));
-    renderColumn("col-afternoon", bucketSummary(index, targetDate, BUCKETS.afternoon, false));
-    renderColumn("col-night", bucketSummary(index, targetDate, BUCKETS.night, true));
+  // Render straight from cache when it covers the requested day - no loading
+  // flash on navigation between yesterday/today/tomorrow.
+  let shownFromCache = false;
+  if (cached && hasDate(cached.hourly, targetDate)) {
+    renderDay(cached, targetDate);
+    shownFromCache = true;
+  }
+
+  // Fresh cache that already covers the day: nothing more to do, no network.
+  if (shownFromCache && Date.now() - cached.ts < CACHE_TTL_MS) return;
+
+  try {
+    const payload = await refresh(cached);
+    renderDay(payload, targetDate);
   } catch (err) {
     console.error(err);
-    showError();
+    if (!shownFromCache) showError();
   }
 }
 
