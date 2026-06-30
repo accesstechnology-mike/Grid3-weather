@@ -101,6 +101,20 @@ function getDayParam() {
 
 const DAY_OFFSETS = { yesterday: -1, today: 0, tomorrow: 1 };
 
+function townFromGeocode(result) {
+  if (result.bua) {
+    const town = result.bua.replace(/\s*\([^)]*\)\s*$/, "").trim();
+    if (town) return town;
+  }
+  if (typeof result.ced === "string" && result.ced.trim()) return result.ced.trim();
+  if (result.parish && !/unparished/i.test(result.parish)) {
+    const town = result.parish.replace(/,.*$/, "").trim();
+    if (town) return town;
+  }
+  if (result.admin_district) return result.admin_district;
+  return null;
+}
+
 async function geocode(postcode) {
   const url = `https://api.postcodes.io/postcodes/${encodeURIComponent(postcode)}`;
   const res = await fetch(url);
@@ -109,7 +123,11 @@ async function geocode(postcode) {
   if (!data.result || typeof data.result.latitude !== "number") {
     throw new Error("Geocode returned no coordinates");
   }
-  return { lat: data.result.latitude, lon: data.result.longitude };
+  return {
+    lat: data.result.latitude,
+    lon: data.result.longitude,
+    town: townFromGeocode(data.result),
+  };
 }
 
 async function fetchWeather(lat, lon) {
@@ -191,7 +209,13 @@ async function main() {
   markCurrentLink(day);
 
   try {
-    const { lat, lon } = await geocode(POSTCODE);
+    const { lat, lon, town } = await geocode(POSTCODE);
+    const locationEl = document.getElementById("day-location");
+    if (town) {
+      locationEl.textContent = town;
+    } else {
+      locationEl.hidden = true;
+    }
     const hourly = await fetchWeather(lat, lon);
     const index = indexHourly(hourly);
 

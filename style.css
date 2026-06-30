@@ -30,6 +30,7 @@ body {
 
 .app {
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   display: flex;
   flex-direction: column;
@@ -45,13 +46,19 @@ body {
 }
 
 #day-title {
-  font-size: clamp(1.4rem, 5vh, 3rem);
+  font-size: clamp(2rem, 7vh, 4.5rem);
   font-weight: 800;
   letter-spacing: 0.5px;
 }
 
+.day-location {
+  font-size: clamp(1.3rem, 4.5vh, 2.6rem);
+  font-weight: 700;
+  color: var(--accent);
+}
+
 .day-date {
-  font-size: clamp(0.8rem, 2.4vh, 1.4rem);
+  font-size: clamp(1.1rem, 3.8vh, 2.2rem);
   color: var(--muted);
 }
 
@@ -71,15 +78,15 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: space-evenly;
   gap: clamp(0.2rem, 1vh, 0.7rem);
-  padding: clamp(0.3rem, 1.5vh, 1rem);
+  padding: clamp(0.5rem, 2.5vh, 1.4rem) clamp(0.3rem, 1.5vw, 1rem);
   min-width: 0;
   text-align: center;
 }
 
 .column-label {
-  font-size: clamp(0.9rem, 3.2vh, 2rem);
+  font-size: clamp(1.2rem, 4.8vh, 2.8rem);
   font-weight: 700;
   color: var(--accent);
   text-transform: uppercase;
@@ -87,19 +94,23 @@ body {
 }
 
 .icon {
-  font-size: clamp(2.5rem, 14vh, 8rem);
+  font-size: clamp(4rem, 22vh, 12rem);
   line-height: 1;
 }
 
 .temp {
-  font-size: clamp(1.4rem, 6vh, 3.5rem);
+  font-size: clamp(2rem, 9vh, 5.5rem);
   font-weight: 800;
 }
 
 .phrase {
-  font-size: clamp(0.85rem, 3vh, 1.8rem);
+  font-size: clamp(1.1rem, 4.5vh, 2.6rem);
   color: var(--muted);
   line-height: 1.15;
+  min-height: 2.3em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Day links (the only links on the page) */
@@ -116,8 +127,8 @@ body {
   color: var(--text);
   background: var(--link-bg);
   border-radius: 999px;
-  padding: clamp(0.25rem, 1.2vh, 0.6rem) clamp(0.7rem, 2.5vw, 1.6rem);
-  font-size: clamp(0.8rem, 2.6vh, 1.3rem);
+  padding: clamp(0.35rem, 1.6vh, 0.85rem) clamp(0.9rem, 3vw, 2rem);
+  font-size: clamp(1rem, 3.8vh, 1.9rem);
   font-weight: 700;
 }
 
@@ -141,7 +152,7 @@ body {
   align-items: center;
   justify-content: center;
   text-align: center;
-  font-size: clamp(1rem, 4vh, 2rem);
+  font-size: clamp(1.4rem, 5.5vh, 2.8rem);
   font-weight: 700;
   color: var(--accent);
   padding: 1rem;
