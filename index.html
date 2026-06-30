@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teni's Weather</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="day-header">
+      <h1 id="day-title">Today</h1>
+      <p id="day-date" class="day-date"></p>
+    </header>
+
+    <section class="columns" aria-live="polite">
+      <div class="error-banner" id="error-banner">Weather unavailable right now</div>
+
+      <div class="column" id="col-morning">
+        <h2 class="column-label">Morning</h2>
+        <div class="icon" data-role="icon">…</div>
+        <div class="temp" data-role="temp"></div>
+        <div class="phrase" data-role="phrase">Loading…</div>
+      </div>
+
+      <div class="column" id="col-afternoon">
+        <h2 class="column-label">Afternoon</h2>
+        <div class="icon" data-role="icon">…</div>
+        <div class="temp" data-role="temp"></div>
+        <div class="phrase" data-role="phrase">Loading…</div>
+      </div>
+
+      <div class="column" id="col-night">
+        <h2 class="column-label">Night</h2>
+        <div class="icon" data-role="icon">…</div>
+        <div class="temp" data-role="temp"></div>
+        <div class="phrase" data-role="phrase">Loading…</div>
+      </div>
+    </section>
+
+    <nav class="day-links" aria-label="Choose day">
+      <a href="?day=yesterday">Yesterday</a>
+      <a href="?day=today">Today</a>
+      <a href="?day=tomorrow">Tomorrow</a>
+    </nav>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
