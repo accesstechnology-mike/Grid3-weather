@@ -124,6 +124,7 @@ body {
 .day-links a {
   display: inline-block;
   text-decoration: none;
+  cursor: pointer;
   color: var(--text);
   background: var(--link-bg);
   border-radius: 999px;

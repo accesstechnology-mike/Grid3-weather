@@ -198,6 +198,35 @@ function showError() {
   document.querySelector(".app").classList.add("error");
 }
 
+// Hide the browser's hover URL preview (shown in Grid 3's web cell and in
+// desktop browsers) without breaking the links Grid reads. The real href is in
+// the static markup and is present at load (when Grid harvests the links). It is
+// only stripped while the pointer is over/dwelling on a link, so no status bar
+// appears, then restored on leave. Activation navigates via JS using the stored
+// URL, so dwell-clicks still work even while the href is stripped.
+function suppressHoverUrl() {
+  document.querySelectorAll(".day-links a").forEach((a) => {
+    const url = a.getAttribute("href");
+    if (!url) return;
+    a.dataset.href = url;
+    const strip = () => a.removeAttribute("href");
+    const restore = () => {
+      if (a.dataset.href) a.setAttribute("href", a.dataset.href);
+    };
+    a.addEventListener("pointerenter", strip);
+    a.addEventListener("mouseenter", strip);
+    a.addEventListener("pointerleave", restore);
+    a.addEventListener("mouseleave", restore);
+    a.addEventListener("blur", restore);
+    a.addEventListener("click", (e) => {
+      if (!a.getAttribute("href")) {
+        e.preventDefault();
+        window.location.href = a.dataset.href;
+      }
+    });
+  });
+}
+
 async function main() {
   const day = getDayParam();
   const today = londonToday();
@@ -207,6 +236,7 @@ async function main() {
     day.charAt(0).toUpperCase() + day.slice(1);
   document.getElementById("day-date").textContent = prettyDate(targetDate);
   markCurrentLink(day);
+  suppressHoverUrl();
 
   try {
     const { lat, lon, town } = await geocode(POSTCODE);
