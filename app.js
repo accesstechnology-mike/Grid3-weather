@@ -1,8 +1,5 @@
-"use strict";
-
-// The one configured input (the spec): Teni's postcode. Lat/long are never
-// hardcoded - they are geocoded live from this value.
-const POSTCODE = "KT11 2JW";
+import { placeById } from "./places.mjs";
+import { chooseWear, dateInTimeZone, presentWarning, shiftDate } from "./logic.mjs";
 
 const BUCKETS = {
   morning: { start: 6, end: 11 },
@@ -10,9 +7,9 @@ const BUCKETS = {
   night: { start: 18, end: 23 },
 };
 
-// WMO weather code -> emoji + plain condition. `isNight` swaps sun for moon
-// on clear/mainly-clear conditions. severity is used to pick the most
-// significant condition within a time bucket.
+const DAY_OFFSETS = { yesterday: -1, today: 0, tomorrow: 1 };
+const CACHE_TTL_MS = 30 * 60 * 1000;
+
 function weatherInfo(code, isNight) {
   const map = {
     0: { day: "☀️", night: "🌙", condition: "Sunny", nightCondition: "Clear", severity: 0 },
@@ -60,27 +57,6 @@ function tempWord(c) {
   return "hot";
 }
 
-// Today's calendar date in Teni's timezone as YYYY-MM-DD.
-function londonToday() {
-  const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  return fmt.format(new Date());
-}
-
-function shiftDate(ymd, offset) {
-  const [y, m, d] = ymd.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d, 12));
-  dt.setUTCDate(dt.getUTCDate() + offset);
-  const yy = dt.getUTCFullYear();
-  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(dt.getUTCDate()).padStart(2, "0");
-  return `${yy}-${mm}-${dd}`;
-}
-
 function prettyDate(ymd) {
   const [y, m, d] = ymd.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d, 12));
@@ -99,7 +75,11 @@ function getDayParam() {
   return "today";
 }
 
-const DAY_OFFSETS = { yesterday: -1, today: 0, tomorrow: 1 };
+function getPlace() {
+  const param = new URLSearchParams(window.location.search).get("location");
+  if (!param) return placeById("cobham");
+  return placeById(param);
+}
 
 function townFromGeocode(result) {
   if (result.bua) {
@@ -115,7 +95,7 @@ function townFromGeocode(result) {
   return null;
 }
 
-async function geocode(postcode) {
+async function geocodePostcode(postcode) {
   const url = `https://api.postcodes.io/postcodes/${encodeURIComponent(postcode)}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Geocode failed: ${res.status}`);
@@ -127,28 +107,77 @@ async function geocode(postcode) {
     lat: data.result.latitude,
     lon: data.result.longitude,
     town: townFromGeocode(data.result),
+    country: "GB",
   };
+}
+
+async function geocodePlace(place) {
+  const url =
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(place.query)}` +
+    `&count=10&language=en&format=json&countryCode=${encodeURIComponent(place.country)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Geocode failed: ${res.status}`);
+  const data = await res.json();
+  const results = (data.results || []).filter((item) => item.country_code === place.country);
+  results.sort((a, b) => (b.population || 0) - (a.population || 0));
+  const hit = results[0];
+  if (!hit || typeof hit.latitude !== "number" || typeof hit.longitude !== "number") {
+    throw new Error("Geocode returned no coordinates");
+  }
+  if (!hit.timezone) throw new Error("Geocode returned no timezone");
+  return {
+    lat: hit.latitude,
+    lon: hit.longitude,
+    town: hit.name,
+    country: hit.country_code,
+    timezone: hit.timezone,
+  };
+}
+
+async function locate(place) {
+  if (place.postcode) return geocodePostcode(place.postcode);
+  return geocodePlace(place);
 }
 
 async function fetchWeather(lat, lon) {
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-    `&hourly=temperature_2m,weather_code&past_days=1&forecast_days=2&timezone=Europe%2FLondon`;
+    `&hourly=temperature_2m,weather_code,precipitation_probability,uv_index` +
+    `&past_days=1&forecast_days=2&timezone=auto`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Weather fetch failed: ${res.status}`);
   const data = await res.json();
-  if (!data.hourly || !Array.isArray(data.hourly.time)) {
+  if (!data.hourly || !Array.isArray(data.hourly.time) || !data.timezone) {
     throw new Error("Weather returned no hourly data");
   }
-  return data.hourly;
+  return { hourly: data.hourly, timezone: data.timezone };
 }
 
-// Build { "YYYY-MM-DDTHH": {temp, code} } lookup from the hourly arrays.
+async function fetchWarnings(loc, dates) {
+  const params = new URLSearchParams({
+    lat: String(loc.lat),
+    lon: String(loc.lon),
+    country: loc.country,
+    timezone: loc.timezone,
+    dates: dates.join(","),
+  });
+  const res = await fetch(`/api/warnings?${params}`);
+  if (!res.ok) throw new Error(`Warnings failed: ${res.status}`);
+  const data = await res.json();
+  if (!data || typeof data.checked !== "boolean") throw new Error("Warnings returned nothing");
+  return data;
+}
+
 function indexHourly(hourly) {
   const index = {};
-  const { time, temperature_2m, weather_code } = hourly;
+  const { time, temperature_2m, weather_code, precipitation_probability, uv_index } = hourly;
   for (let i = 0; i < time.length; i++) {
-    index[time[i]] = { temp: temperature_2m[i], code: weather_code[i] };
+    index[time[i]] = {
+      temp: temperature_2m[i],
+      code: weather_code[i],
+      pop: precipitation_probability ? precipitation_probability[i] : null,
+      uv: uv_index ? uv_index[i] : null,
+    };
   }
   return index;
 }
@@ -171,6 +200,30 @@ function bucketSummary(index, ymd, bucket, isNight) {
   return { temp: avg, emoji: worst.emoji, condition: worst.condition };
 }
 
+function collectHours(index, ymd, buckets) {
+  const temps = [];
+  const codes = [];
+  const pops = [];
+  const uvs = [];
+  for (const bucket of buckets) {
+    for (let h = bucket.start; h <= bucket.end; h++) {
+      const entry = index[`${ymd}T${String(h).padStart(2, "0")}:00`];
+      if (!entry) continue;
+      temps.push(entry.temp);
+      codes.push(entry.code);
+      pops.push(entry.pop);
+      uvs.push(entry.uv);
+    }
+  }
+  return { temps, codes, pops, uvs };
+}
+
+function wearSamples(index, ymd) {
+  const day = collectHours(index, ymd, [BUCKETS.morning, BUCKETS.afternoon]);
+  const all = collectHours(index, ymd, [BUCKETS.morning, BUCKETS.afternoon, BUCKETS.night]);
+  return { ...day, wetCodes: all.codes, wetPops: all.pops };
+}
+
 function renderColumn(id, summary) {
   const col = document.getElementById(id);
   const icon = col.querySelector('[data-role="icon"]');
@@ -187,6 +240,65 @@ function renderColumn(id, summary) {
   phrase.textContent = `${summary.condition} and ${tempWord(summary.temp)}`;
 }
 
+function setWarning(tone, symbol, text) {
+  const el = document.getElementById("warning-corner");
+  if (!el) return;
+  el.className = `corner corner-warning warning-tone-${tone}`;
+  el.querySelector(".warning-symbol").textContent = symbol;
+  el.querySelector(".warning-text").textContent = text;
+}
+
+function renderWarning(result, ymd) {
+  if (!result || result.checked !== true || !result.byDate || !result.byDate[ymd]) {
+    setWarning("unknown", "❓", "Can't check warning");
+    return;
+  }
+  const day = result.byDate[ymd];
+  if (!day.checked) {
+    setWarning("unknown", "❓", "Can't check warning");
+    return;
+  }
+  const warning = (day.warnings || [])[0];
+  if (!warning) {
+    setWarning("none", "✅", "No weather warning");
+    return;
+  }
+  const view = presentWarning(warning);
+  setWarning(view.tone, view.symbol, view.text);
+}
+
+function renderWear(samples) {
+  const row = document.getElementById("wear-row");
+  if (!row) return;
+  row.replaceChildren();
+  const items = samples ? chooseWear(samples) : null;
+  if (!items) {
+    const item = document.createElement("div");
+    item.className = "wear-item";
+    const symbol = document.createElement("span");
+    symbol.className = "wear-symbol";
+    symbol.textContent = "❓";
+    const label = document.createElement("span");
+    label.className = "wear-label";
+    label.textContent = "Clothes";
+    item.append(symbol, label);
+    row.append(item);
+    return;
+  }
+  for (const wear of items) {
+    const item = document.createElement("div");
+    item.className = "wear-item";
+    const symbol = document.createElement("span");
+    symbol.className = "wear-symbol";
+    symbol.textContent = wear.symbol;
+    const label = document.createElement("span");
+    label.className = "wear-label";
+    label.textContent = wear.label;
+    item.append(symbol, label);
+    row.append(item);
+  }
+}
+
 function markCurrentLink(day) {
   document.querySelectorAll(".day-links a").forEach((a) => {
     const linkDay = new URLSearchParams(a.search).get("day");
@@ -198,14 +310,8 @@ function showError() {
   document.querySelector(".app").classList.add("error");
 }
 
-// Hide the browser's hover URL preview (shown in Grid 3's web cell and in
-// desktop browsers) without breaking the links Grid reads. The real href is in
-// the static markup and is present at load (when Grid harvests the links). It is
-// only stripped while the pointer is over/dwelling on a link, so no status bar
-// appears, then restored on leave. Activation navigates via JS using the stored
-// URL, so dwell-clicks still work even while the href is stripped.
-function suppressHoverUrl() {
-  document.querySelectorAll(".day-links a").forEach((a) => {
+function suppressHoverUrl(links) {
+  links.forEach((a) => {
     const url = a.getAttribute("href");
     if (!url) return;
     a.dataset.href = url;
@@ -227,50 +333,65 @@ function suppressHoverUrl() {
   });
 }
 
-// One weather fetch (past_days=1 + forecast_days=2) covers yesterday, today and
-// tomorrow, so caching it lets day-to-day navigation render instantly instead of
-// flashing the loading placeholders on every full page load.
-const CACHE_KEY = `teni-weather:${POSTCODE}`;
-const CACHE_TTL_MS = 30 * 60 * 1000;
+function cacheKey(placeId) {
+  return `teni-weather:${placeId}`;
+}
 
-function readCache() {
+function readCache(placeId) {
   try {
-    const raw = localStorage.getItem(CACHE_KEY);
+    const raw = localStorage.getItem(cacheKey(placeId));
     return raw ? JSON.parse(raw) : null;
   } catch (e) {
     return null;
   }
 }
 
-function writeCache(payload) {
+function writeCache(placeId, payload) {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
+    localStorage.setItem(cacheKey(placeId), JSON.stringify(payload));
   } catch (e) {
     /* storage unavailable - fall back to live fetches */
   }
 }
 
 function hasDate(hourly, ymd) {
-  return !!hourly && Array.isArray(hourly.time) &&
-    hourly.time.some((t) => t.startsWith(ymd));
+  return !!hourly && Array.isArray(hourly.time) && hourly.time.some((t) => t.startsWith(ymd));
 }
 
-// Refresh from the network. Reuses cached coordinates so revalidation skips the
-// geocode call (the postcode never changes).
-async function refresh(existing) {
-  let lat, lon, town;
-  if (existing && typeof existing.lat === "number") {
-    ({ lat, lon, town } = existing);
-  } else {
-    ({ lat, lon, town } = await geocode(POSTCODE));
+function cacheIsFresh(cached) {
+  return !!cached && typeof cached.ts === "number" && Date.now() - cached.ts < CACHE_TTL_MS;
+}
+
+async function refresh(place, existing) {
+  let located = existing;
+  if (!existing || typeof existing.lat !== "number" || !existing.country) {
+    located = await locate(place);
   }
-  const hourly = await fetchWeather(lat, lon);
-  const payload = { ts: Date.now(), lat, lon, town, hourly };
-  writeCache(payload);
+  const weather = await fetchWeather(located.lat, located.lon);
+  const timezone = weather.timezone || located.timezone;
+  if (!timezone) throw new Error("Weather returned no timezone");
+  const today = dateInTimeZone(timezone);
+  const dates = [shiftDate(today, -1), today, shiftDate(today, 1)];
+  const loc = {
+    lat: located.lat,
+    lon: located.lon,
+    town: located.town,
+    country: located.country,
+    timezone,
+  };
+  let warnings = null;
+  try {
+    warnings = await fetchWarnings(loc, dates);
+  } catch (err) {
+    console.error(err);
+    warnings = { checked: false, byDate: null };
+  }
+  const payload = { ts: Date.now(), ...loc, hourly: weather.hourly, warnings };
+  writeCache(place.id, payload);
   return payload;
 }
 
-function renderDay(payload, targetDate) {
+function renderPlace(payload, targetDate) {
   const locationEl = document.getElementById("day-location");
   if (payload.town) {
     locationEl.textContent = payload.town;
@@ -282,40 +403,55 @@ function renderDay(payload, targetDate) {
   renderColumn("col-morning", bucketSummary(index, targetDate, BUCKETS.morning, false));
   renderColumn("col-afternoon", bucketSummary(index, targetDate, BUCKETS.afternoon, false));
   renderColumn("col-night", bucketSummary(index, targetDate, BUCKETS.night, true));
+  renderWear(wearSamples(index, targetDate));
+  renderWarning(payload.warnings, targetDate);
   document.querySelector(".app").classList.remove("error");
 }
 
 async function main() {
+  const place = getPlace();
   const day = getDayParam();
-  const today = londonToday();
-  const targetDate = shiftDate(today, DAY_OFFSETS[day]);
-
-  document.getElementById("day-title").textContent =
-    day.charAt(0).toUpperCase() + day.slice(1);
-  document.getElementById("day-date").textContent = prettyDate(targetDate);
+  document.getElementById("day-title").textContent = day.charAt(0).toUpperCase() + day.slice(1);
   markCurrentLink(day);
-  suppressHoverUrl();
+  suppressHoverUrl(document.querySelectorAll(".day-links a"));
 
-  const cached = readCache();
-
-  // Render straight from cache when it covers the requested day - no loading
-  // flash on navigation between yesterday/today/tomorrow.
-  let shownFromCache = false;
-  if (cached && hasDate(cached.hourly, targetDate)) {
-    renderDay(cached, targetDate);
-    shownFromCache = true;
+  if (!place) {
+    document.getElementById("day-date").textContent = "";
+    setWarning("unknown", "❓", "Can't check warning");
+    showError();
+    return;
   }
 
-  // Fresh cache that already covers the day: nothing more to do, no network.
-  if (shownFromCache && Date.now() - cached.ts < CACHE_TTL_MS) return;
+  const cached = readCache(place.id);
+  let shownFromCache = false;
+  if (cached && cached.timezone && cached.hourly) {
+    const today = dateInTimeZone(cached.timezone);
+    const targetDate = shiftDate(today, DAY_OFFSETS[day]);
+    if (hasDate(cached.hourly, targetDate)) {
+      document.getElementById("day-date").textContent = prettyDate(targetDate);
+      renderPlace(cached, targetDate);
+      shownFromCache = true;
+      if (cacheIsFresh(cached) && cached.warnings) return;
+    }
+  }
 
   try {
-    const payload = await refresh(cached);
-    renderDay(payload, targetDate);
+    const payload = await refresh(place, shownFromCache ? cached : null);
+    const today = dateInTimeZone(payload.timezone);
+    const targetDate = shiftDate(today, DAY_OFFSETS[day]);
+    document.getElementById("day-date").textContent = prettyDate(targetDate);
+    renderPlace(payload, targetDate);
   } catch (err) {
     console.error(err);
-    if (!shownFromCache) showError();
+    if (!shownFromCache) {
+      setWarning("unknown", "❓", "Can't check warning");
+      showError();
+    }
   }
 }
 
-main();
+if (document.getElementById("col-morning")) {
+  main();
+} else {
+  suppressHoverUrl(document.querySelectorAll(".place-links a"));
+}

@@ -9,9 +9,18 @@
 <body>
   <main class="app">
     <header class="day-header">
-      <h1 id="day-title">Today</h1>
-      <p id="day-location" class="day-location"></p>
-      <p id="day-date" class="day-date"></p>
+      <div class="corner corner-warning warning-tone-checking" id="warning-corner">
+        <div class="warning-symbol" aria-hidden="true">…</div>
+        <p class="warning-text">Checking warning</p>
+      </div>
+      <div class="day-heading">
+        <h1 id="day-title">Today</h1>
+        <p id="day-location" class="day-location"></p>
+        <p id="day-date" class="day-date"></p>
+      </div>
+      <div class="corner corner-wear" id="wear-corner">
+        <div class="wear-row" id="wear-row" aria-label="What to wear"></div>
+      </div>
     </header>
 
     <section class="columns" aria-live="polite">
@@ -46,6 +55,16 @@
     </nav>
   </main>
 
-  <script src="app.js"></script>
+  <script>
+    // Rewrite day links before Grid harvests them, keeping the chosen place.
+    (function () {
+      var loc = new URLSearchParams(window.location.search).get("location") || "cobham";
+      document.querySelectorAll(".day-links a").forEach(function (a) {
+        var day = new URLSearchParams(a.getAttribute("href").replace(/^\?/, "")).get("day") || "today";
+        a.setAttribute("href", "?location=" + encodeURIComponent(loc) + "&day=" + encodeURIComponent(day));
+      });
+    })();
+  </script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

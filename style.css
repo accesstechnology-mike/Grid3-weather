@@ -41,11 +41,24 @@ body {
   gap: clamp(0.3rem, 1.2vh, 0.9rem);
 }
 
-/* Header */
+/* Header. The day title stays in the middle. Warning sits top left, clothes top right. */
 .day-header {
   flex: 0 0 auto;
-  text-align: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.15fr) minmax(0, 1.05fr);
+  align-items: center;
+  gap: clamp(0.25rem, 1vw, 0.7rem);
   line-height: 1.1;
+}
+
+.day-heading {
+  text-align: center;
+  min-width: 0;
+}
+
+.places-header {
+  display: block;
+  text-align: center;
 }
 
 #day-title {
@@ -116,7 +129,68 @@ body {
   justify-content: center;
 }
 
-/* Day links (the only links on the page) */
+/* Warning (top left) and what to bring (top right) */
+.corner-warning {
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  border-radius: clamp(0.45rem, 1.2vh, 0.8rem);
+  padding: clamp(0.25rem, 0.8vh, 0.5rem) clamp(0.4rem, 1vw, 0.7rem);
+}
+
+.warning-symbol {
+  font-size: clamp(1.5rem, 5.5vh, 3rem);
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.warning-text {
+  font-size: clamp(0.75rem, 2.3vh, 1.2rem);
+  font-weight: 800;
+  line-height: 1.1;
+  max-width: 11rem;
+}
+
+.warning-tone-none { background: #1b7f4e; color: #ffffff; }
+.warning-tone-yellow { background: #f5c518; color: #1a1200; }
+.warning-tone-amber { background: #ef7d12; color: #1a1200; }
+.warning-tone-red { background: #c62828; color: #ffffff; }
+.warning-tone-unknown,
+.warning-tone-checking { background: #3d4f6b; color: #ffffff; }
+
+.corner-wear {
+  justify-self: end;
+  max-width: 100%;
+}
+
+.wear-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: clamp(0.25rem, 0.8vw, 0.6rem);
+}
+
+.wear-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.wear-symbol {
+  font-size: clamp(1.5rem, 5.5vh, 3rem);
+  line-height: 1;
+}
+
+.wear-label {
+  font-size: clamp(0.65rem, 1.9vh, 1rem);
+  font-weight: 700;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Day links (the only links on the weather page) */
 .day-links {
   flex: 0 0 auto;
   display: flex;
@@ -160,4 +234,36 @@ body {
   font-weight: 700;
   color: var(--accent);
   padding: 1rem;
+}
+
+/* Place picker. Cobham is the first link and spans the top row. */
+.places-app {
+  gap: clamp(0.4rem, 1.5vh, 0.9rem);
+}
+
+.place-links {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: clamp(0.35rem, 1.2vh, 0.75rem);
+}
+
+.place-links a:first-child {
+  grid-column: 1 / -1;
+}
+
+.place-links a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  color: var(--text);
+  background: var(--link-bg);
+  border-radius: clamp(0.45rem, 1.4vh, 0.9rem);
+  padding: clamp(0.2rem, 0.6vh, 0.4rem);
+  font-size: clamp(1.05rem, 4.2vh, 2.3rem);
+  font-weight: 800;
 }
