@@ -245,7 +245,7 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: clamp(0.35rem, 1.2vh, 0.75rem);
 }
 

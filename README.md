@@ -29,7 +29,7 @@ Grid 3 scrapes the page for links and surfaces them in its own interface.
 
 - The weather page is `index.html`. The day is `?day=yesterday`, `?day=today` (default) or `?day=tomorrow`. The place is `?location=cobham` (default) and so on.
 - The three day links are the only links on the weather page. They keep the current place.
-- The place list is a separate page, `locations.html`, so Grid can open it on its own. Cobham is the first link. Each link reloads the weather page for that place.
+- The place list is a separate page, `locations.html`, so Grid can open it on its own. Cobham is the first link, then Nottingham, London, Lagos and San Diego. Each link reloads the weather page for that place.
 
 ## Time buckets
 

@@ -2,15 +2,10 @@
 // geocoded live (Cobham from its postcode, everywhere else by name + country).
 export const PLACES = [
   { id: "cobham", label: "Cobham", postcode: "KT11 2JW" },
-  { id: "reykjavik", label: "Reykjavik", query: "Reykjavik", country: "IS" },
-  { id: "oslo", label: "Oslo", query: "Oslo", country: "NO" },
-  { id: "rome", label: "Rome", query: "Rome", country: "IT" },
-  { id: "paris", label: "Paris", query: "Paris", country: "FR" },
-  { id: "amsterdam", label: "Amsterdam", query: "Amsterdam", country: "NL" },
-  { id: "new-york", label: "New York", query: "New York", country: "US" },
-  { id: "toronto", label: "Toronto", query: "Toronto", country: "CA" },
-  { id: "dubai", label: "Dubai", query: "Dubai", country: "AE" },
-  { id: "singapore", label: "Singapore", query: "Singapore", country: "SG" },
+  { id: "nottingham", label: "Nottingham", query: "Nottingham", country: "GB" },
+  { id: "london", label: "London", query: "London", country: "GB" },
+  { id: "lagos", label: "Lagos", query: "Lagos", country: "NG" },
+  { id: "san-diego", label: "San Diego", query: "San Diego", country: "US" },
 ];
 
 export function placeById(id) {

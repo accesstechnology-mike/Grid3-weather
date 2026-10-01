@@ -312,7 +312,7 @@ test("the place list matches the location page, with Cobham first", () => {
   const ids = [...html.matchAll(/location=([a-z0-9-]+)/g)].map((match) => match[1]);
   assert.deepEqual(ids, PLACES.map((place) => place.id));
   assert.equal(ids[0], "cobham");
-  assert.equal(ids.length, 10);
+  assert.equal(ids.length, 5);
   const index = fs.readFileSync(new URL("./index.html", import.meta.url), "utf8");
   const dayLinks = [...index.matchAll(/<a href="[^"]*">/g)].map((match) => match[0]);
   assert.equal(dayLinks.length, 3);
