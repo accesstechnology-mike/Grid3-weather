@@ -257,6 +257,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0.45em;
   text-align: center;
   text-decoration: none;
   cursor: pointer;
@@ -266,4 +267,13 @@ body {
   padding: clamp(0.2rem, 0.6vh, 0.4rem);
   font-size: clamp(1.05rem, 4.2vh, 2.3rem);
   font-weight: 800;
+}
+
+.place-flag {
+  height: 1.45em;
+  width: auto;
+  display: block;
+  flex: 0 0 auto;
+  border-radius: 0.08em;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.55);
 }

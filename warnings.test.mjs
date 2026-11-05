@@ -313,6 +313,18 @@ test("the place list matches the location page, with Cobham first", () => {
   assert.deepEqual(ids, PLACES.map((place) => place.id));
   assert.equal(ids[0], "cobham");
   assert.equal(ids.length, 5);
+  const links = [...html.matchAll(/<a href="index\.html\?location=([a-z0-9-]+)">([\s\S]*?)<\/a>/g)];
+  const flagMark = { GB: "#012169", NG: "#008751", US: "#b31942" };
+  assert.equal(links.length, PLACES.length);
+  for (const [i, place] of PLACES.entries()) {
+    assert.equal(links[i][1], place.id);
+    assert.match(place.country, /^[A-Z]{2}$/);
+    const src = `flags/${place.country.toLowerCase()}.svg`;
+    assert.ok(links[i][2].includes(`src="${src}"`), `${place.id} shows ${src}`);
+    const svg = fs.readFileSync(new URL(`./${src}`, import.meta.url), "utf8");
+    assert.match(svg, /<svg[\s>]/);
+    assert.ok(svg.toLowerCase().includes(flagMark[place.country]));
+  }
   const index = fs.readFileSync(new URL("./index.html", import.meta.url), "utf8");
   const dayLinks = [...index.matchAll(/<a href="[^"]*">/g)].map((match) => match[0]);
   assert.equal(dayLinks.length, 3);

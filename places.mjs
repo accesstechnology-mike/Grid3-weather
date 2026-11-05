@@ -1,7 +1,7 @@
 // Places the page can show. Coordinates are never stored here: each place is
 // geocoded live (Cobham from its postcode, everywhere else by name + country).
 export const PLACES = [
-  { id: "cobham", label: "Cobham", postcode: "KT11 2JW" },
+  { id: "cobham", label: "Cobham", postcode: "KT11 2JW", country: "GB" },
   { id: "nottingham", label: "Nottingham", query: "Nottingham", country: "GB" },
   { id: "london", label: "London", query: "London", country: "GB" },
   { id: "lagos", label: "Lagos", query: "Lagos", country: "NG" },
